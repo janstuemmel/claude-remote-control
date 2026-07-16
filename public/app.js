@@ -8,6 +8,9 @@ const state = {
 const elements = {
   health: document.querySelector("#health"),
   authDetails: document.querySelector("#auth-details"),
+  claudeMissing: document.querySelector("#claude-missing"),
+  claudeAuthRequired: document.querySelector("#claude-auth-required"),
+  claudeAuthMessage: document.querySelector("#claude-auth-message"),
   addProcess: document.querySelector("#add-process"),
   dialog: document.querySelector("#create-dialog"),
   closeDialog: document.querySelector("#close-dialog"),
@@ -147,6 +150,7 @@ async function processAction(id, action) {
 
 function renderHealth() {
   const health = state.health;
+  const authReady = health?.auth?.loggedIn && health.auth.authMethod === "claude.ai";
   elements.health.className = `health ${health?.ready ? "health-ok" : "health-error"}`;
   const errorLabel = !health?.available
     ? "Claude is not available"
@@ -171,9 +175,14 @@ function renderHealth() {
   mobileLabel.textContent = health?.ready ? `Claude ${health.version}` : mobileErrorLabel;
   elements.health.append(fullLabel, mobileLabel);
   renderAuthDetails(health);
+  elements.claudeMissing.hidden = health?.available !== false;
+  elements.claudeAuthRequired.hidden = !health?.available || authReady;
+  elements.claudeAuthMessage.innerHTML = health?.auth?.loggedIn
+    ? 'Remote Control requires Claude.ai authentication. Run <code>claude auth login</code> on this server and sign in with a Claude.ai account, then reload this page.'
+    : 'Sign in with a Claude.ai account by running <code>claude auth login</code> on this server, then reload this page.';
   elements.submitForm.disabled = !health?.ready;
   elements.addProcess.disabled = !health?.ready;
-  if (!health?.ready) elements.addProcess.title = health?.error ?? "Claude is not ready for Remote Control";
+  elements.addProcess.title = health?.ready ? "" : health?.error ?? "Claude is not ready for Remote Control";
 }
 
 function renderAuthDetails(health) {

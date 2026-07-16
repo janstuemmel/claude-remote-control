@@ -32,6 +32,22 @@
     </header>
 
     <main class="shell">
+      <section id="claude-missing" class="setup-notice setup-notice-error" aria-labelledby="claude-missing-heading" hidden>
+        <div class="setup-notice-mark" aria-hidden="true">!</div>
+        <div>
+          <h2 id="claude-missing-heading">Claude Code is not available</h2>
+          <p>Install Claude Code and make sure the <code>claude</code> command is available in this server's PATH, then reload this page.</p>
+        </div>
+      </section>
+
+      <section id="claude-auth-required" class="setup-notice setup-notice-error" aria-labelledby="claude-auth-heading" hidden>
+        <div class="setup-notice-mark" aria-hidden="true">!</div>
+        <div>
+          <h2 id="claude-auth-heading">Claude authentication is required</h2>
+          <p id="claude-auth-message">Sign in with a Claude.ai account by running <code>claude auth login</code> on this server, then reload this page.</p>
+        </div>
+      </section>
+
       <section class="process-section" aria-labelledby="process-heading">
         <div class="process-heading-row">
           <div>
