@@ -1,7 +1,15 @@
 {
-  "name": "claude-remote-control",
+  "name": "@janstuemmel/claude-remote-control",
   "version": "1.0.0",
   "description": "A small web UI for managing local Claude Code Remote Control servers.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/janstuemmel/claude-remote-control.git"
+  },
+  "bugs": {
+    "url": "https://github.com/janstuemmel/claude-remote-control/issues"
+  },
+  "homepage": "https://github.com/janstuemmel/claude-remote-control#readme",
   "type": "module",
   "bin": {
     "claude-remote-control": "dist/cli.js"
@@ -20,6 +28,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check": "npm run typecheck && npm test && npm run build",
+    "release:check": "npm run check && npm pack --dry-run",
+    "prepack": "npm run build",
     "prepublishOnly": "npm run check"
   },
   "keywords": [
@@ -28,9 +38,17 @@
     "remote-control"
   ],
   "license": "ISC",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "engines": {
     "node": ">=20"
   },
+  "os": [
+    "darwin",
+    "linux"
+  ],
   "packageManager": "pnpm@11.13.1",
   "dependencies": {
     "express": "^5.1.0",

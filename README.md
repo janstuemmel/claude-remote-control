@@ -21,10 +21,10 @@ claude auth status
 
 ## Run
 
-After the package is published:
+Run the latest published version without installing it globally:
 
 ```sh
-npx claude-remote-control
+npx @janstuemmel/claude-remote-control
 ```
 
 From a local checkout:
@@ -40,7 +40,7 @@ The manager listens on `0.0.0.0:3000` and prints its reachable URLs for you to o
 > **Security warning:** there is no authentication or TLS. Anyone who can reach the server can launch Claude against directories accessible to your OS user. Bind to localhost unless you intentionally need LAN access.
 
 ```sh
-npx claude-remote-control --host 127.0.0.1
+npx @janstuemmel/claude-remote-control --host 127.0.0.1
 ```
 
 ## Options
@@ -80,7 +80,19 @@ pnpm typecheck    # static checks
 pnpm test         # automated tests
 pnpm build        # compile to dist/
 pnpm check        # all checks and a production build
+pnpm release:check # checks and verifies the npm package contents
 ```
+
+## Release
+
+After authenticating with npm, verify and publish the current version:
+
+```sh
+pnpm release:check
+npm publish
+```
+
+The package is configured as public and publishes to the npm registry. Update the version in `package.json` before each subsequent release.
 
 The main areas are deliberately separated:
 
