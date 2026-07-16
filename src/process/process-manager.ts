@@ -40,6 +40,8 @@ interface RuntimeProcess {
   urlScanTail: Partial<Record<"stdout" | "stderr", string>>;
   remoteControlPromptTail: string;
   remoteControlPromptAccepted: boolean;
+  trustScanTail: string;
+  trustRequired: boolean;
   terminal: TerminalScreen;
   consoleTimer?: NodeJS.Timeout;
   stopPromise?: Promise<void>;
@@ -148,11 +150,14 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
     runtime.child = child;
     attachTerminalReader(child.stdout, (chunk) => {
       if (runtime.child !== child) return;
+      this.detectWorkspaceTrustRequirement(runtime, chunk);
       this.acceptRemoteControlPrompt(runtime, child, chunk);
       this.updateConsole(runtime, chunk);
     });
     attachTerminalReader(child.stderr, (chunk) => {
-      if (runtime.child === child) this.acceptRemoteControlPrompt(runtime, child, chunk);
+      if (runtime.child !== child) return;
+      this.detectWorkspaceTrustRequirement(runtime, chunk);
+      this.acceptRemoteControlPrompt(runtime, child, chunk);
     });
     attachLineReader(child.stdout, (line) => {
       if (runtime.child === child) this.addLog(runtime, "stdout", line);
@@ -300,7 +305,9 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
     runtime.exitCode = code;
     runtime.status = wasStopping ? "stopped" : "failed";
     if (!wasStopping && !alreadyFailed) {
-      runtime.lastError = `Claude exited unexpectedly (${signal ?? `code ${code ?? "unknown"}`})`;
+      runtime.lastError = runtime.trustRequired
+        ? "Claude requires workspace trust for this directory"
+        : `Claude exited unexpectedly (${signal ?? `code ${code ?? "unknown"}`})`;
     }
     this.addLog(runtime, "system", wasStopping ? "Process stopped" : runtime.lastError!);
     runtime.resolveStop?.();
@@ -348,9 +355,23 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
     runtime.urlScanTail = {};
     runtime.remoteControlPromptTail = "";
     runtime.remoteControlPromptAccepted = false;
+    runtime.trustScanTail = "";
+    runtime.trustRequired = false;
     runtime.terminal.reset();
     if (runtime.consoleTimer) clearTimeout(runtime.consoleTimer);
     runtime.consoleTimer = undefined;
+  }
+
+  private detectWorkspaceTrustRequirement(runtime: RuntimeProcess, chunk: string): void {
+    if (runtime.trustRequired) return;
+    const output = stripAnsi(`${runtime.trustScanTail}${chunk}`);
+    runtime.trustScanTail = output.slice(-512);
+    const requiresTrust = /workspace trust/i.test(output)
+      || /run [`'"]?claude[`'"]?.{0,160}(?:accept|trust)/is.test(output);
+    if (!requiresTrust) return;
+    runtime.trustRequired = true;
+    this.addLog(runtime, "system", "Claude requires workspace trust for this directory");
+    this.emitProcess(runtime);
   }
 
   private acceptRemoteControlPrompt(
@@ -409,6 +430,8 @@ function createRuntime(definition: ProcessDefinition): RuntimeProcess {
     urlScanTail: {},
     remoteControlPromptTail: "",
     remoteControlPromptAccepted: false,
+    trustScanTail: "",
+    trustRequired: false,
     terminal: new TerminalScreen(),
   };
 }
@@ -422,6 +445,7 @@ function toView(runtime: RuntimeProcess): ProcessView {
     exitCode: runtime.exitCode,
     sessionUrl: runtime.sessionUrl,
     lastError: runtime.lastError,
+    trustRequired: runtime.trustRequired || undefined,
     logs: [...runtime.logs],
     consoleOutput: runtime.terminal.toLines(),
   };

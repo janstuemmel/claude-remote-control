@@ -4,15 +4,23 @@ import { AuthLoginManager } from "../auth/auth-login-manager.js";
 import { AppError } from "../errors.js";
 import type { ProcessManager } from "../process/process-manager.js";
 import type { HealthStatus } from "../types.js";
+import { WorkspaceTrustManager } from "../trust/workspace-trust-manager.js";
 
 export interface AppOptions {
   manager: ProcessManager;
   publicDirectory: string;
   getHealth: () => Promise<HealthStatus>;
   authLoginManager?: AuthLoginManager;
+  workspaceTrustManager?: Pick<WorkspaceTrustManager, "trust">;
 }
 
-export function createApp({ manager, publicDirectory, getHealth, authLoginManager = new AuthLoginManager() }: AppOptions): Express {
+export function createApp({
+  manager,
+  publicDirectory,
+  getHealth,
+  authLoginManager = new AuthLoginManager(),
+  workspaceTrustManager = new WorkspaceTrustManager(),
+}: AppOptions): Express {
   const app = express();
 
   app.disable("x-powered-by");
@@ -61,6 +69,16 @@ export function createApp({ manager, publicDirectory, getHealth, authLoginManage
 
   app.post("/api/processes/:id/restart", asyncRoute(async (request, response) => {
     response.json({ process: await manager.restart(String(request.params.id)) });
+  }));
+
+  app.post("/api/processes/:id/trust", asyncRoute(async (request, response) => {
+    const id = String(request.params.id);
+    const process = manager.get(id);
+    if (!process.trustRequired) {
+      throw new AppError(409, "workspace_trust_not_required", "Claude has not requested workspace trust for this process");
+    }
+    await workspaceTrustManager.trust(process.cwd);
+    response.json({ process: await manager.restart(id) });
   }));
 
   app.delete("/api/processes/:id", asyncRoute(async (request, response) => {

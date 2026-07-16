@@ -109,6 +109,19 @@ describe("ProcessManager", () => {
     expect(spawn).toHaveBeenCalledTimes(1);
   });
 
+  it("marks a process that requires workspace trust", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "crc-manager-"));
+    const child = new FakeChild();
+    const manager = new ProcessManager(new MemoryStateStore(), () => child.asChild());
+    const created = await manager.create({ name: "App", cwd, spawnMode: "session" });
+    child.emit("spawn");
+    child.stderr.write("Workspace trust is required. Run `claude` in this project directory to accept it.\n");
+    child.emit("close", 1, null);
+    await nextTurn();
+
+    expect(manager.get(created.id)).toMatchObject({ status: "failed", trustRequired: true });
+  });
+
   it("clears previous process output when restarting", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "crc-manager-"));
     const children = [new FakeChild(101), new FakeChild(102)];

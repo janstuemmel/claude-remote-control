@@ -41,6 +41,7 @@ export interface ProcessView extends ProcessDefinition {
   exitCode?: number | null;
   sessionUrl?: string;
   lastError?: string;
+  trustRequired?: boolean;
   logs: LogEntry[];
   consoleOutput: string[];
 }

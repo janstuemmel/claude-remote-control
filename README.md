@@ -9,7 +9,7 @@ The server is written in TypeScript. The browser interface uses plain HTML, CSS,
 - Node.js 20 or newer
 - Claude Code 2.1.51 or newer
 - A Claude.ai subscription login; API-key authentication does not support Remote Control
-- Workspace trust already accepted for every directory you launch
+- Workspace trust accepted for every directory you launch, or confirmation through the manager when Claude requests it
 - macOS or Linux
 
 Check your setup with:
@@ -18,6 +18,8 @@ Check your setup with:
 claude --version
 claude auth status
 ```
+
+If Remote Control reports that a project has not been trusted yet, the process card offers a **Trust directory** action. Confirming it opens a temporary interactive Claude process, accepts Claude's workspace-trust prompt, closes that process, and retries Remote Control. Only trust directories whose contents you know are safe.
 
 ## Run
 
@@ -119,6 +121,7 @@ POST   /api/processes
 POST   /api/processes/:id/start
 POST   /api/processes/:id/stop
 POST   /api/processes/:id/restart
+POST   /api/processes/:id/trust
 DELETE /api/processes/:id
 GET    /api/events
 ```

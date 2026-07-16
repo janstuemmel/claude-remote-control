@@ -8,6 +8,7 @@ import { checkClaudeHealth } from "./health.js";
 import { ProcessManager } from "./process/process-manager.js";
 import { createApp } from "./server/app.js";
 import { JsonStateStore } from "./storage/state-store.js";
+import { WorkspaceTrustManager } from "./trust/workspace-trust-manager.js";
 
 const { values } = parseArgs({
   options: {
@@ -52,10 +53,12 @@ const authLoginManager = new AuthLoginManager(undefined, () => {
     })
     .catch((error) => console.warn(`Could not restart processes after authentication: ${error.message}`));
 });
+const workspaceTrustManager = new WorkspaceTrustManager();
 const app = createApp({
   manager,
   publicDirectory,
   authLoginManager,
+  workspaceTrustManager,
   getHealth: async () => {
     const health = await healthPromise;
     // Refresh failures so installing/upgrading Claude does not require restarting this manager.
@@ -87,6 +90,7 @@ async function shutdown(signal: string): Promise<void> {
   server.closeAllConnections();
   server.close();
   authLoginManager.shutdown();
+  workspaceTrustManager.shutdown();
   await manager.shutdown();
   console.log("Stopped.");
 }

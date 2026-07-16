@@ -159,6 +159,9 @@ async function processAction(id, action) {
   const process = state.processes.get(id);
   if (!process) return;
   if (action === "delete" && !window.confirm(`Delete “${process.name}”?${process.status === "running" ? " Its running process will be stopped." : ""}`)) return;
+  if (action === "trust" && !window.confirm(
+    `Trust “${process.cwd}”? Claude may read, modify, and execute files from this directory. Only continue if you trust its contents.`,
+  )) return;
 
   state.pending.add(id);
   renderProcesses();
@@ -386,9 +389,16 @@ function createProcessCard(process, logsOpen) {
 
   const actions = card.querySelector(".card-actions");
   if (process.sessionUrl) actions.append(linkButton("Open in Claude", process.sessionUrl));
+  if (process.trustRequired && process.status === "failed") {
+    const trustButton = actionButton("Trust directory", "trust", process.id, busy);
+    trustButton.className = "button button-primary";
+    actions.append(trustButton);
+  }
   if (isActive) actions.append(actionButton("Stop", "stop", process.id, busy || process.status === "stopping"));
   if (process.status === "stopped") actions.append(actionButton("Start", "start", process.id, busy));
-  if (["running", "failed"].includes(process.status)) actions.append(actionButton("Restart", "restart", process.id, busy));
+  if (process.status === "running" || (process.status === "failed" && !process.trustRequired)) {
+    actions.append(actionButton("Restart", "restart", process.id, busy));
+  }
   const deleteButton = actionButton("Delete", "delete", process.id, busy || process.status === "starting" || process.status === "stopping");
   deleteButton.classList.add("button-danger", "delete");
   actions.append(deleteButton);

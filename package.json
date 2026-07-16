@@ -51,6 +51,7 @@
   ],
   "packageManager": "pnpm@11.13.1",
   "dependencies": {
+    "@lydell/node-pty": "1.2.0-beta.14",
     "express": "^5.1.0",
     "strip-ansi": "^7.1.0"
   },

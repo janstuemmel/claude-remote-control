@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AuthLoginManager } from "../src/auth/auth-login-manager.js";
 import { ProcessManager } from "../src/process/process-manager.js";
 import { createApp } from "../src/server/app.js";
@@ -122,5 +122,28 @@ describe("HTTP API", () => {
     await request(app).post("/api/auth/login/token").send({ token: "browser-token" }).expect(200);
     await nextTurn();
     expect(submitted).toBe("browser-token\n");
+  });
+
+  it("trusts a requested workspace and retries its process", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "crc-api-"));
+    const children = [new FakeChild(301), new FakeChild(302)];
+    let childIndex = 0;
+    const manager = new ProcessManager(new MemoryStateStore(), () => children[childIndex++].asChild());
+    const trust = vi.fn(async () => undefined);
+    const app = createApp({
+      manager,
+      workspaceTrustManager: { trust },
+      publicDirectory: join(process.cwd(), "public"),
+      getHealth: async () => healthy,
+    });
+    const created = await manager.create({ name: "Trust", cwd, spawnMode: "session" });
+    children[0].emit("spawn");
+    children[0].stderr.write("Workspace trust required. Run `claude` here to accept workspace trust.\n");
+    children[0].emit("close", 1, null);
+    await nextTurn();
+
+    await request(app).post(`/api/processes/${created.id}/trust`).expect(200)
+      .expect(({ body }) => expect(body.process.status).toBe("starting"));
+    expect(trust).toHaveBeenCalledWith(cwd);
   });
 });
