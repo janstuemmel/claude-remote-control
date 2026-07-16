@@ -44,6 +44,14 @@ describe("buildClaudeArguments", () => {
         "--permission-mode", "acceptEdits",
       ]);
   });
+
+  it("passes the Remote Control session name prefix", () => {
+    expect(buildClaudeArguments(base, { sessionNamePrefix: "build-server" }))
+      .toEqual([
+        "remote-control", "--name", "My Project", "--spawn", "session",
+        "--remote-control-session-name-prefix", "build-server",
+      ]);
+  });
 });
 
 describe("buildClaudeEnvironment", () => {

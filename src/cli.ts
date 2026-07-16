@@ -15,6 +15,7 @@ const { values } = parseArgs({
     host: { type: "string", default: "0.0.0.0" },
     port: { type: "string", default: "3000" },
     "data-dir": { type: "string", default: join(homedir(), ".claude-remote-control") },
+    "remote-control-session-name-prefix": { type: "string" },
     help: { type: "boolean", short: "h", default: false },
   },
   strict: true,
@@ -33,9 +34,24 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535) {
 
 const host = values.host!;
 const dataDirectory = values["data-dir"]!;
+const rawSessionNamePrefix = values["remote-control-session-name-prefix"];
+const sessionNamePrefix = rawSessionNamePrefix?.trim();
+if (rawSessionNamePrefix !== undefined && (
+  !sessionNamePrefix
+  || sessionNamePrefix.length > 100
+  || /\p{Cc}/u.test(sessionNamePrefix)
+)) {
+  console.error("Error: --remote-control-session-name-prefix must be 1-100 characters without control characters");
+  process.exit(1);
+}
 const packageDirectory = dirname(dirname(fileURLToPath(import.meta.url)));
 const publicDirectory = join(packageDirectory, "public");
-const manager = new ProcessManager(new JsonStateStore(join(dataDirectory, "state.json")));
+const manager = new ProcessManager(
+  new JsonStateStore(join(dataDirectory, "state.json")),
+  undefined,
+  undefined,
+  { sessionNamePrefix },
+);
 
 try {
   await manager.initialize();
@@ -122,5 +138,7 @@ Options:
   --host <address>    Address to bind (default: 0.0.0.0)
   --port <number>     Port to listen on (default: 3000)
   --data-dir <path>   Persistent data directory (default: ~/.claude-remote-control)
+  --remote-control-session-name-prefix <prefix>
+                       Prefix for all Claude Remote Control session names
   -h, --help          Show this help`);
 }

@@ -1,8 +1,18 @@
 import type { ProcessDefinition } from "../types.js";
 
-export function buildClaudeArguments(definition: ProcessDefinition): string[] {
+export interface ClaudeCommandOptions {
+  sessionNamePrefix?: string;
+}
+
+export function buildClaudeArguments(
+  definition: ProcessDefinition,
+  options: ClaudeCommandOptions = {},
+): string[] {
   const args = ["remote-control", "--name", definition.name, "--spawn", definition.spawnMode];
 
+  if (options.sessionNamePrefix) {
+    args.push("--remote-control-session-name-prefix", options.sessionNamePrefix);
+  }
   if (definition.spawnMode !== "session") {
     args.push("--capacity", String(definition.capacity ?? 32));
   }

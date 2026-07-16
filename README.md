@@ -51,6 +51,8 @@ npx @janstuemmel/claude-remote-control --host 127.0.0.1
 --host <address>    Address to bind (default: 0.0.0.0)
 --port <number>     Port to listen on (default: 3000)
 --data-dir <path>   Persistent data directory (default: ~/.claude-remote-control)
+--remote-control-session-name-prefix <prefix>
+                    Prefix for all Claude Remote Control session names
 -h, --help          Show help
 ```
 

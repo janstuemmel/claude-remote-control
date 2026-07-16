@@ -11,7 +11,12 @@ describe("ProcessManager", () => {
     const cwd = await mkdtemp(join(tmpdir(), "crc-manager-"));
     const child = new FakeChild();
     const spawn = vi.fn(() => child.asChild()) as SpawnProcess;
-    const manager = new ProcessManager(new MemoryStateStore(), spawn);
+    const manager = new ProcessManager(
+      new MemoryStateStore(),
+      spawn,
+      undefined,
+      { sessionNamePrefix: "build-server" },
+    );
 
     const created = await manager.create({ name: "App", cwd, spawnMode: "session" });
     child.emit("spawn");
@@ -25,6 +30,11 @@ describe("ProcessManager", () => {
     expect(view.logs).toHaveLength(500);
     expect(view.logs.at(-1)?.message).toBe("line 504");
     expect(spawn).toHaveBeenCalledWith("claude", expect.arrayContaining(["--spawn", "session"]), expect.objectContaining({ cwd, detached: true }));
+    expect(spawn).toHaveBeenCalledWith(
+      "claude",
+      expect.arrayContaining(["--remote-control-session-name-prefix", "build-server"]),
+      expect.anything(),
+    );
   });
 
   it("does not expose terminal redraws as append-only stdout logs", async () => {

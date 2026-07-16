@@ -1,6 +1,6 @@
 {
   "name": "@janstuemmel/claude-remote-control",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A small web UI for managing local Claude Code Remote Control servers.",
   "repository": {
     "type": "git",

@@ -11,7 +11,7 @@ import type {
   ProcessStatus,
   ProcessView,
 } from "../types.js";
-import { buildClaudeArguments, buildClaudeEnvironment } from "./command.js";
+import { buildClaudeArguments, buildClaudeEnvironment, type ClaudeCommandOptions } from "./command.js";
 import { TerminalScreen } from "./terminal-screen.js";
 import { validateProcessInput } from "./validation.js";
 
@@ -63,6 +63,7 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
     private readonly store: StateStore,
     private readonly spawnProcess: SpawnProcess = defaultSpawn,
     private readonly killProcessGroup: KillProcessGroup = defaultKill,
+    private readonly commandOptions: ClaudeCommandOptions = {},
   ) {
     super();
   }
@@ -131,12 +132,12 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
     runtime.sessionUrl = undefined;
     this.clearProcessOutput(runtime);
     this.emit("console", { processId: runtime.definition.id, lines: [] });
-    this.addLog(runtime, "system", `Starting claude ${buildClaudeArguments(runtime.definition).join(" ")}`);
+    this.addLog(runtime, "system", `Starting claude ${buildClaudeArguments(runtime.definition, this.commandOptions).join(" ")}`);
     this.emitProcess(runtime);
 
     let child: ChildProcessWithoutNullStreams;
     try {
-      child = this.spawnProcess("claude", buildClaudeArguments(runtime.definition), {
+      child = this.spawnProcess("claude", buildClaudeArguments(runtime.definition, this.commandOptions), {
         cwd: runtime.definition.cwd,
         detached: true,
         env: buildClaudeEnvironment(),
