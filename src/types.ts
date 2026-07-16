@@ -71,6 +71,16 @@ export interface ClaudeAuthStatus {
   error?: string;
 }
 
+export type AuthLoginState = "idle" | "running" | "succeeded" | "failed";
+
+export interface AuthLoginView {
+  status: AuthLoginState;
+  startedAt?: string;
+  url?: string;
+  output: string;
+  error?: string;
+}
+
 export interface ApiErrorBody {
   error: {
     code: string;

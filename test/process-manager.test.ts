@@ -88,6 +88,61 @@ describe("ProcessManager", () => {
     expect(spawn).toHaveBeenCalledTimes(1);
   });
 
+  it("clears previous process output when restarting", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "crc-manager-"));
+    const children = [new FakeChild(101), new FakeChild(102)];
+    let childIndex = 0;
+    const manager = new ProcessManager(
+      new MemoryStateStore(),
+      () => children[childIndex++].asChild(),
+      () => children[0].emit("close", 0, "SIGTERM"),
+    );
+    const created = await manager.create({ name: "App", cwd, spawnMode: "session" });
+    children[0].emit("spawn");
+    children[0].stdout.write("Old terminal output\n");
+    children[0].stderr.write("Old error output\n");
+    await nextTurn();
+
+    await manager.restart(created.id);
+    children[0].stdout.write("Late old output\n");
+    children[0].stderr.write("Late old error\n");
+    children[1].emit("spawn");
+    children[1].stdout.write("New terminal output\n");
+    children[1].stderr.write("New error output\n");
+    await nextTurn();
+
+    const view = manager.get(created.id);
+    expect(view.consoleOutput.join("\n")).toContain("New terminal output");
+    expect(view.consoleOutput.join("\n")).not.toContain("Old");
+    expect(view.logs.filter((log) => log.stream === "stderr").map((log) => log.message))
+      .toEqual(["New error output"]);
+    expect(view.logs.some((log) => log.stream === "system")).toBe(true);
+  });
+
+  it("restarts desired processes after authentication and leaves stopped entries alone", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "crc-manager-"));
+    const store = new MemoryStateStore();
+    store.processes = [
+      definition("retry", "Retry", cwd, true),
+      definition("stopped", "Stopped", cwd, false),
+    ];
+    const children: FakeChild[] = [];
+    const manager = new ProcessManager(store, () => {
+      const child = new FakeChild(200 + children.length);
+      children.push(child);
+      return child.asChild();
+    });
+    await manager.initialize();
+    children[0].emit("error", new Error("Authentication required"));
+    children[0].emit("close", 1, null);
+
+    await manager.restartDesiredProcesses();
+
+    expect(children).toHaveLength(2);
+    expect(manager.get("retry")).toMatchObject({ status: "starting", desiredRunning: true });
+    expect(manager.get("stopped")).toMatchObject({ status: "stopped", desiredRunning: false });
+  });
+
   it("restores only definitions that were meant to be running", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "crc-manager-"));
     const store = new MemoryStateStore();

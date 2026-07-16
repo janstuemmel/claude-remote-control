@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
+import { AuthLoginManager } from "../src/auth/auth-login-manager.js";
 import { ProcessManager } from "../src/process/process-manager.js";
 import { createApp } from "../src/server/app.js";
 import type { HealthStatus } from "../src/types.js";
@@ -92,5 +93,34 @@ describe("HTTP API", () => {
     expect(firstChunk).toContain('"processes":[]');
     await reader.cancel();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  });
+
+  it("starts an interactive Claude login and forwards its token", async () => {
+    const manager = new ProcessManager(new MemoryStateStore());
+    const child = new FakeChild();
+    const authLoginManager = new AuthLoginManager(() => child.asChild());
+    let submitted = "";
+    child.stdin.setEncoding("utf8");
+    child.stdin.on("data", (chunk: string) => { submitted += chunk; });
+    const app = createApp({
+      manager,
+      authLoginManager,
+      publicDirectory: join(process.cwd(), "public"),
+      getHealth: async () => ({
+        ...healthy,
+        ready: false,
+        auth: { loggedIn: false },
+        error: "Sign in required",
+      }),
+    });
+
+    await request(app).post("/api/auth/login").expect(201)
+      .expect(({ body }) => expect(body.login.status).toBe("running"));
+    child.stdout.write("Visit https://claude.ai/login/test\n");
+    await request(app).get("/api/auth/login").expect(200)
+      .expect(({ body }) => expect(body.login.url).toBe("https://claude.ai/login/test"));
+    await request(app).post("/api/auth/login/token").send({ token: "browser-token" }).expect(200);
+    await nextTurn();
+    expect(submitted).toBe("browser-token\n");
   });
 });

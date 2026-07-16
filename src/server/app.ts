@@ -1,5 +1,6 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import { resolve } from "node:path";
+import { AuthLoginManager } from "../auth/auth-login-manager.js";
 import { AppError } from "../errors.js";
 import type { ProcessManager } from "../process/process-manager.js";
 import type { HealthStatus } from "../types.js";
@@ -8,9 +9,10 @@ export interface AppOptions {
   manager: ProcessManager;
   publicDirectory: string;
   getHealth: () => Promise<HealthStatus>;
+  authLoginManager?: AuthLoginManager;
 }
 
-export function createApp({ manager, publicDirectory, getHealth }: AppOptions): Express {
+export function createApp({ manager, publicDirectory, getHealth, authLoginManager = new AuthLoginManager() }: AppOptions): Express {
   const app = express();
 
   app.disable("x-powered-by");
@@ -20,6 +22,21 @@ export function createApp({ manager, publicDirectory, getHealth }: AppOptions): 
   app.get("/api/health", asyncRoute(async (_request, response) => {
     response.json(await getHealth());
   }));
+
+  app.get("/api/auth/login", (_request, response) => {
+    response.json({ login: authLoginManager.get() });
+  });
+
+  app.post("/api/auth/login", asyncRoute(async (_request, response) => {
+    const health = await getHealth();
+    if (!health.available) throw new AppError(503, "claude_unavailable", "Claude Code is not available");
+    if (health.ready) throw new AppError(409, "already_authenticated", "Claude is already authenticated");
+    response.status(201).json({ login: authLoginManager.start() });
+  }));
+
+  app.post("/api/auth/login/token", (request, response) => {
+    response.json({ login: authLoginManager.submitToken(request.body?.token) });
+  });
 
   app.get("/api/processes", (_request, response) => {
     response.json({ processes: manager.list() });
@@ -69,17 +86,22 @@ export function createApp({ manager, publicDirectory, getHealth }: AppOptions): 
     const onConsole = (event: { processId: string; lines: string[] }) => {
       response.write(`event: console\ndata: ${JSON.stringify(event)}\n\n`);
     };
+    const onAuthLogin = (login: ReturnType<AuthLoginManager["get"]>) => {
+      response.write(`event: auth-login\ndata: ${JSON.stringify({ login })}\n\n`);
+    };
     const heartbeat = setInterval(() => response.write(": heartbeat\n\n"), 15_000);
     heartbeat.unref();
     manager.on("process", onProcess);
     manager.on("log", onLog);
     manager.on("console", onConsole);
+    authLoginManager.on("change", onAuthLogin);
 
     request.on("close", () => {
       clearInterval(heartbeat);
       manager.off("process", onProcess);
       manager.off("log", onLog);
       manager.off("console", onConsole);
+      authLoginManager.off("change", onAuthLogin);
     });
   });
 

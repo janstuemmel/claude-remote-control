@@ -4,6 +4,7 @@ import { homedir, networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import open from "open";
+import { AuthLoginManager } from "./auth/auth-login-manager.js";
 import { checkClaudeHealth } from "./health.js";
 import { ProcessManager } from "./process/process-manager.js";
 import { createApp } from "./server/app.js";
@@ -45,9 +46,18 @@ try {
 }
 
 let healthPromise = checkClaudeHealth();
+const authLoginManager = new AuthLoginManager(undefined, () => {
+  healthPromise = checkClaudeHealth();
+  void healthPromise
+    .then(async (health) => {
+      if (health.ready) await manager.restartDesiredProcesses();
+    })
+    .catch((error) => console.warn(`Could not restart processes after authentication: ${error.message}`));
+});
 const app = createApp({
   manager,
   publicDirectory,
+  authLoginManager,
   getHealth: async () => {
     const health = await healthPromise;
     // Refresh failures so installing/upgrading Claude does not require restarting this manager.
@@ -82,6 +92,7 @@ async function shutdown(signal: string): Promise<void> {
   console.log(`\nReceived ${signal}; stopping managed processes…`);
   server.closeAllConnections();
   server.close();
+  authLoginManager.shutdown();
   await manager.shutdown();
   console.log("Stopped.");
 }

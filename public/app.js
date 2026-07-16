@@ -3,6 +3,7 @@ const state = {
   health: null,
   pending: new Set(),
   loaded: false,
+  authLogin: { status: "idle", output: "" },
 };
 
 const elements = {
@@ -11,6 +12,17 @@ const elements = {
   claudeMissing: document.querySelector("#claude-missing"),
   claudeAuthRequired: document.querySelector("#claude-auth-required"),
   claudeAuthMessage: document.querySelector("#claude-auth-message"),
+  openAuthLogin: document.querySelector("#open-auth-login"),
+  authDialog: document.querySelector("#auth-dialog"),
+  closeAuthDialog: document.querySelector("#close-auth-dialog"),
+  authLoginStatus: document.querySelector("#auth-login-status"),
+  authLoginLink: document.querySelector("#auth-login-link"),
+  authLoginOutput: document.querySelector("#auth-login-output"),
+  authTokenForm: document.querySelector("#auth-token-form"),
+  authToken: document.querySelector("#auth-token"),
+  submitAuthToken: document.querySelector("#submit-auth-token"),
+  authLoginError: document.querySelector("#auth-login-error"),
+  restartAuthLogin: document.querySelector("#restart-auth-login"),
   addProcess: document.querySelector("#add-process"),
   dialog: document.querySelector("#create-dialog"),
   closeDialog: document.querySelector("#close-dialog"),
@@ -37,14 +49,26 @@ elements.dialog.addEventListener("click", (event) => {
 });
 elements.mode.addEventListener("change", updateCapacityVisibility);
 elements.form.addEventListener("submit", createProcess);
+elements.openAuthLogin.addEventListener("click", openAuthLogin);
+elements.closeAuthDialog.addEventListener("click", () => elements.authDialog.close());
+elements.authDialog.addEventListener("click", (event) => {
+  if (event.target === elements.authDialog) elements.authDialog.close();
+});
+elements.authTokenForm.addEventListener("submit", submitAuthToken);
+elements.restartAuthLogin.addEventListener("click", startAuthLogin);
 
 await loadInitialState();
 connectEvents();
 
 async function loadInitialState() {
   try {
-    const [health, response] = await Promise.all([api("/api/health"), api("/api/processes")]);
+    const [health, response, authResponse] = await Promise.all([
+      api("/api/health"),
+      api("/api/processes"),
+      api("/api/auth/login"),
+    ]);
     state.health = health;
+    state.authLogin = authResponse.login;
     state.processes = new Map(response.processes.map((process) => [process.id, process]));
     renderHealth();
   } catch (error) {
@@ -90,6 +114,12 @@ function connectEvents() {
     process.consoleOutput = lines;
     renderLiveConsole(processId, lines, process.logs.filter((log) => log.stream === "stderr"));
   });
+  events.addEventListener("auth-login", (event) => {
+    const { login } = JSON.parse(event.data);
+    state.authLogin = login;
+    renderAuthLogin();
+    if (login.status === "succeeded") void finishAuthLogin();
+  });
 }
 
 async function createProcess(event) {
@@ -119,7 +149,7 @@ async function createProcess(event) {
   } catch (error) {
     showFormError(error.message);
   } finally {
-    elements.submitForm.disabled = !state.health?.compatible;
+    elements.submitForm.disabled = !state.health?.ready;
     elements.submitForm.textContent = "Launch process";
   }
 }
@@ -178,11 +208,100 @@ function renderHealth() {
   elements.claudeMissing.hidden = health?.available !== false;
   elements.claudeAuthRequired.hidden = !health?.available || authReady;
   elements.claudeAuthMessage.innerHTML = health?.auth?.loggedIn
-    ? 'Remote Control requires Claude.ai authentication. Run <code>claude auth login</code> on this server and sign in with a Claude.ai account, then reload this page.'
-    : 'Sign in with a Claude.ai account by running <code>claude auth login</code> on this server, then reload this page.';
+    ? "Remote Control requires Claude.ai authentication. Sign in again with a Claude.ai account."
+    : "Sign in with a Claude.ai account to use Remote Control.";
   elements.submitForm.disabled = !health?.ready;
   elements.addProcess.disabled = !health?.ready;
   elements.addProcess.title = health?.ready ? "" : health?.error ?? "Claude is not ready for Remote Control";
+}
+
+async function openAuthLogin() {
+  if (!elements.authDialog.open) elements.authDialog.showModal();
+  renderAuthLogin();
+  if (state.authLogin.status === "succeeded") await finishAuthLogin();
+  else if (state.authLogin.status !== "running") await startAuthLogin();
+}
+
+async function startAuthLogin() {
+  hideAuthLoginError();
+  elements.restartAuthLogin.disabled = true;
+  try {
+    const response = await api("/api/auth/login", { method: "POST" });
+    state.authLogin = response.login;
+    renderAuthLogin();
+  } catch (error) {
+    showAuthLoginError(error.message);
+  } finally {
+    elements.restartAuthLogin.disabled = false;
+  }
+}
+
+async function submitAuthToken(event) {
+  event.preventDefault();
+  hideAuthLoginError();
+  elements.submitAuthToken.disabled = true;
+  try {
+    const response = await api("/api/auth/login/token", {
+      method: "POST",
+      body: { token: elements.authToken.value },
+    });
+    state.authLogin = response.login;
+    elements.authToken.value = "";
+    elements.authLoginStatus.textContent = "Token submitted. Waiting for Claude…";
+  } catch (error) {
+    showAuthLoginError(error.message);
+  } finally {
+    elements.submitAuthToken.disabled = false;
+  }
+}
+
+function renderAuthLogin() {
+  const login = state.authLogin;
+  const labels = {
+    idle: "Ready to start Claude login.",
+    running: login.url ? "Complete authentication in your browser." : "Waiting for the authentication link…",
+    succeeded: "Claude login completed successfully.",
+    failed: "Claude login did not complete.",
+  };
+  elements.authLoginStatus.textContent = labels[login.status] ?? "Claude login status is unknown.";
+  elements.authLoginOutput.textContent = login.output || "Waiting for Claude output…";
+  elements.authLoginLink.hidden = !login.url;
+  if (login.url) elements.authLoginLink.href = login.url;
+  elements.authTokenForm.hidden = login.status !== "running";
+  elements.restartAuthLogin.hidden = !["idle", "failed"].includes(login.status);
+  if (login.error) showAuthLoginError(login.error);
+  else hideAuthLoginError();
+  elements.authLoginOutput.scrollTop = elements.authLoginOutput.scrollHeight;
+}
+
+let finishingAuthLogin = false;
+async function finishAuthLogin() {
+  if (finishingAuthLogin) return;
+  finishingAuthLogin = true;
+  try {
+    state.health = await api("/api/health");
+    renderHealth();
+    if (state.health.ready) {
+      if (elements.authDialog.open) elements.authDialog.close();
+      showToast("Claude authentication completed");
+    } else {
+      showAuthLoginError(state.health.error ?? "Claude authentication is still not sufficient for Remote Control");
+    }
+  } catch (error) {
+    showAuthLoginError(error.message);
+  } finally {
+    finishingAuthLogin = false;
+  }
+}
+
+function showAuthLoginError(message) {
+  elements.authLoginError.textContent = message;
+  elements.authLoginError.hidden = false;
+}
+
+function hideAuthLoginError() {
+  elements.authLoginError.hidden = true;
+  elements.authLoginError.textContent = "";
 }
 
 function renderAuthDetails(health) {

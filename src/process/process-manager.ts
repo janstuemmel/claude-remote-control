@@ -125,7 +125,7 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
     runtime.exitCode = undefined;
     runtime.lastError = undefined;
     runtime.sessionUrl = undefined;
-    runtime.terminal.reset();
+    this.clearProcessOutput(runtime);
     this.emit("console", { processId: runtime.definition.id, lines: [] });
     this.addLog(runtime, "system", `Starting claude ${buildClaudeArguments(runtime.definition).join(" ")}`);
     this.emitProcess(runtime);
@@ -144,9 +144,15 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
     }
 
     runtime.child = child;
-    attachTerminalReader(child.stdout, (chunk) => this.updateConsole(runtime, chunk));
-    attachLineReader(child.stdout, (line) => this.addLog(runtime, "stdout", line));
-    attachLineReader(child.stderr, (line) => this.addLog(runtime, "stderr", line));
+    attachTerminalReader(child.stdout, (chunk) => {
+      if (runtime.child === child) this.updateConsole(runtime, chunk);
+    });
+    attachLineReader(child.stdout, (line) => {
+      if (runtime.child === child) this.addLog(runtime, "stdout", line);
+    });
+    attachLineReader(child.stderr, (line) => {
+      if (runtime.child === child) this.addLog(runtime, "stderr", line);
+    });
 
     child.once("spawn", () => {
       if (runtime.child !== child || runtime.status !== "starting") return;
@@ -225,6 +231,27 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
     runtime.definition.desiredRunning = true;
     await this.persist();
     return this.start(id, false);
+  }
+
+  async restartDesiredProcesses(): Promise<void> {
+    const ids = [...this.processes.values()]
+      .filter((runtime) => runtime.definition.desiredRunning)
+      .map((runtime) => runtime.definition.id);
+
+    await Promise.all(ids.map(async (id) => {
+      try {
+        const runtime = this.requireProcess(id);
+        if (runtime.status === "starting" || runtime.status === "stopping") {
+          await this.stop(id, false);
+        }
+        await this.restart(id);
+      } catch (error) {
+        const runtime = this.processes.get(id);
+        if (!runtime) return;
+        this.addLog(runtime, "system", `Restart after authentication failed: ${errorMessage(error)}`);
+        this.emitProcess(runtime);
+      }
+    }));
   }
 
   async delete(id: string): Promise<void> {
@@ -307,6 +334,14 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
 
   private emitProcess(runtime: RuntimeProcess): void {
     this.emit("process", toView(runtime));
+  }
+
+  private clearProcessOutput(runtime: RuntimeProcess): void {
+    runtime.logs = runtime.logs.filter((log) => log.stream === "system");
+    runtime.urlScanTail = {};
+    runtime.terminal.reset();
+    if (runtime.consoleTimer) clearTimeout(runtime.consoleTimer);
+    runtime.consoleTimer = undefined;
   }
 
   private updateConsole(runtime: RuntimeProcess, chunk: string): void {

@@ -86,6 +86,7 @@ pnpm check        # all checks and a production build
 The main areas are deliberately separated:
 
 ```text
+src/auth/         interactive Claude authentication lifecycle
 src/process/      process lifecycle, commands, and validation
 src/server/       HTTP API and live event stream
 src/storage/      persistent state
@@ -99,6 +100,9 @@ The UI uses the following same-origin endpoints:
 
 ```text
 GET    /api/health
+GET    /api/auth/login
+POST   /api/auth/login
+POST   /api/auth/login/token
 GET    /api/processes
 POST   /api/processes
 POST   /api/processes/:id/start
@@ -108,4 +112,4 @@ DELETE /api/processes/:id
 GET    /api/events
 ```
 
-`/api/events` is a Server-Sent Events stream containing snapshots, lifecycle changes, and new log entries.
+`/api/events` is a Server-Sent Events stream containing snapshots, lifecycle changes, authentication updates, and new log entries. Authentication tokens are forwarded directly to the active Claude process and are not persisted.

@@ -42,10 +42,11 @@
 
       <section id="claude-auth-required" class="setup-notice setup-notice-error" aria-labelledby="claude-auth-heading" hidden>
         <div class="setup-notice-mark" aria-hidden="true">!</div>
-        <div>
+        <div class="setup-notice-content">
           <h2 id="claude-auth-heading">Claude authentication is required</h2>
           <p id="claude-auth-message">Sign in with a Claude.ai account by running <code>claude auth login</code> on this server, then reload this page.</p>
         </div>
+        <button id="open-auth-login" class="button button-primary setup-notice-action" type="button">Sign in to Claude</button>
       </section>
 
       <section class="process-section" aria-labelledby="process-heading">
@@ -157,6 +158,31 @@
           <dd>Lets Claude inspect and plan without editing the project until you change modes.</dd>
         </dl>
         <p class="popover-note">Remote Control does not offer Auto or Bypass permission modes.</p>
+      </div>
+    </dialog>
+
+    <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-login-heading">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">Claude authentication</p>
+          <h2 id="auth-login-heading">Sign in to Claude</h2>
+        </div>
+        <button id="close-auth-dialog" class="dialog-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="auth-login-body">
+        <p id="auth-login-status" class="auth-login-status" role="status" aria-live="polite">Starting Claude login…</p>
+        <a id="auth-login-link" class="button button-link auth-login-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Open authentication page</a>
+        <pre id="auth-login-output" class="auth-login-output" aria-label="Claude login output">Waiting for Claude output…</pre>
+        <form id="auth-token-form" class="auth-token-form" hidden>
+          <label for="auth-token">Authentication token</label>
+          <div class="auth-token-row">
+            <input id="auth-token" name="token" type="text" required autocomplete="one-time-code" spellcheck="false" placeholder="Paste the token from Claude" />
+            <button id="submit-auth-token" class="button button-primary" type="submit">Submit token</button>
+          </div>
+          <p>Use this if the Claude login process remains open after authentication in your browser.</p>
+        </form>
+        <p id="auth-login-error" class="form-error" role="alert" hidden></p>
+        <button id="restart-auth-login" class="button button-primary" type="button" hidden>Try again</button>
       </div>
     </dialog>
 
