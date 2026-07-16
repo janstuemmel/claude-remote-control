@@ -1,0 +1,49 @@
+{
+  "name": "claude-remote-control",
+  "version": "1.0.0",
+  "description": "A small web UI for managing local Claude Code Remote Control servers.",
+  "type": "module",
+  "bin": {
+    "claude-remote-control": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "public",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm test && npm run build",
+    "prepublishOnly": "npm run check"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "remote-control"
+  ],
+  "license": "ISC",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@11.13.1",
+  "dependencies": {
+    "express": "^5.1.0",
+    "open": "^10.1.2",
+    "strip-ansi": "^7.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.13",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

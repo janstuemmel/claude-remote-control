@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Claude Remote Control</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="create-panel" aria-labelledby="create-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">New process</p>
+            <h2 id="create-heading">Launch a remote control server</h2>
+          </div>
+          <div class="section-actions">
+            <div id="health" class="health health-loading" aria-live="polite">
+              <span class="status-dot"></span>
+              <span>Checking Claude…</span>
+            </div>
+            <button id="toggle-form" class="button button-primary" type="button" aria-expanded="false" aria-controls="create-form">
+              <span aria-hidden="true">＋</span> Add process
+            </button>
+          </div>
+        </div>
+
+        <form id="create-form" class="create-form" hidden>
+          <div class="field">
+            <label for="name">Name</label>
+            <input id="name" name="name" required maxlength="100" placeholder="Design system" autocomplete="off" />
+          </div>
+          <div class="field field-wide">
+            <label for="cwd">Working directory</label>
+            <input id="cwd" name="cwd" required placeholder="/Users/you/code/project" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="field">
+            <div class="label-row">
+              <label for="spawnMode">Mode</label>
+              <button class="help-trigger" type="button" popovertarget="mode-help" aria-label="Explain process modes">?</button>
+            </div>
+            <select id="spawnMode" name="spawnMode">
+              <option value="session">Single session</option>
+              <option value="same-dir">Shared directory</option>
+              <option value="worktree">Git worktrees</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="label-row">
+              <label for="permissionMode">Permissions</label>
+              <button class="help-trigger" type="button" popovertarget="permissions-help" aria-label="Explain permission modes">?</button>
+            </div>
+            <select id="permissionMode" name="permissionMode">
+              <option value="">Use Claude settings</option>
+              <option value="default">Ask before changes</option>
+              <option value="acceptEdits">Accept edits</option>
+              <option value="plan">Plan only</option>
+            </select>
+          </div>
+          <div id="capacity-field" class="field" hidden>
+            <label for="capacity">Capacity</label>
+            <input id="capacity" name="capacity" type="number" min="1" max="1000" value="32" inputmode="numeric" />
+          </div>
+          <fieldset class="field options-field">
+            <legend>Options</legend>
+            <label class="check"><input name="sandbox" type="checkbox" /> <span>Sandbox</span></label>
+            <label class="check"><input name="verbose" type="checkbox" /> <span>Verbose logs</span></label>
+          </fieldset>
+          <div id="form-error" class="form-error" role="alert" hidden></div>
+          <div class="form-actions">
+            <button id="cancel-form" class="button button-quiet" type="button">Cancel</button>
+            <button id="submit-form" class="button button-primary" type="submit">Launch process</button>
+          </div>
+        </form>
+      </section>
+
+      <div id="mode-help" class="help-popover" popover>
+        <div class="popover-heading">
+          <h3>Process modes</h3>
+          <button type="button" class="popover-close" popovertarget="mode-help" popovertargetaction="hide" aria-label="Close">×</button>
+        </div>
+        <dl>
+          <dt>Single session</dt>
+          <dd>Serves exactly one remote session for this working directory.</dd>
+          <dt>Shared directory</dt>
+          <dd>Allows several sessions in the same directory. Concurrent edits can conflict.</dd>
+          <dt>Git worktrees</dt>
+          <dd>Creates an isolated Git worktree for each session. The directory must be a Git repository.</dd>
+        </dl>
+      </div>
+
+      <div id="permissions-help" class="help-popover" popover>
+        <div class="popover-heading">
+          <h3>Permission modes</h3>
+          <button type="button" class="popover-close" popovertarget="permissions-help" popovertargetaction="hide" aria-label="Close">×</button>
+        </div>
+        <dl>
+          <dt>Use Claude settings</dt>
+          <dd>Does not override the permission mode configured for Claude Code.</dd>
+          <dt>Ask before changes</dt>
+          <dd>Allows reads, but asks before edits and commands that require approval.</dd>
+          <dt>Accept edits</dt>
+          <dd>Automatically accepts file edits and common filesystem operations, while other actions can still ask.</dd>
+          <dt>Plan only</dt>
+          <dd>Lets Claude inspect and plan without editing the project until you change modes.</dd>
+        </dl>
+        <p class="popover-note">Remote Control does not offer Auto or Bypass permission modes.</p>
+      </div>
+
+      <section class="process-section" aria-labelledby="process-heading">
+        <div class="process-heading-row">
+          <div>
+            <p class="eyebrow">Workspace</p>
+            <h2 id="process-heading">Managed processes <span id="process-count" class="count">0</span></h2>
+          </div>
+          <span id="connection-state" class="connection-state">Connecting…</span>
+        </div>
+        <div id="loading" class="empty-state">
+          <span class="spinner" aria-hidden="true"></span>
+          <p>Loading processes…</p>
+        </div>
+        <div id="empty" class="empty-state" hidden>
+          <div class="empty-icon" aria-hidden="true">⌁</div>
+          <h3>No managed processes yet</h3>
+          <p>Add one above to make a project available through Claude Remote Control.</p>
+        </div>
+        <div id="processes" class="process-grid"></div>
+      </section>
+    </main>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>
