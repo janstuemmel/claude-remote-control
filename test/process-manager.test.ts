@@ -59,6 +59,27 @@ describe("ProcessManager", () => {
       .toBe("https://claude.ai/code?environment=env_01UJ123");
   });
 
+  it("accepts the first-run Remote Control prompt once", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "crc-manager-"));
+    const child = new FakeChild();
+    const manager = new ProcessManager(new MemoryStateStore(), () => child.asChild());
+    const created = await manager.create({ name: "App", cwd, spawnMode: "session" });
+    let input = "";
+    child.stdin.setEncoding("utf8");
+    child.stdin.on("data", (chunk: string) => { input += chunk; });
+    child.emit("spawn");
+
+    child.stdout.write("Take this session with you\nEnable Remote ");
+    child.stdout.write("Control? (y/n)");
+    child.stdout.write("\rEnable Remote Control? (y/n)");
+    await nextTurn();
+
+    expect(input).toBe("y\n");
+    expect(manager.get(created.id).logs.some((log) =>
+      log.stream === "system" && log.message.includes("Accepted the Claude Remote Control enable prompt"),
+    )).toBe(true);
+  });
+
   it("stops the process group and clears desired state", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "crc-manager-"));
     const child = new FakeChild(42);

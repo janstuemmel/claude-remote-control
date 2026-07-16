@@ -38,6 +38,8 @@ interface RuntimeProcess {
   logs: LogEntry[];
   nextLogId: number;
   urlScanTail: Partial<Record<"stdout" | "stderr", string>>;
+  remoteControlPromptTail: string;
+  remoteControlPromptAccepted: boolean;
   terminal: TerminalScreen;
   consoleTimer?: NodeJS.Timeout;
   stopPromise?: Promise<void>;
@@ -145,7 +147,12 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
 
     runtime.child = child;
     attachTerminalReader(child.stdout, (chunk) => {
-      if (runtime.child === child) this.updateConsole(runtime, chunk);
+      if (runtime.child !== child) return;
+      this.acceptRemoteControlPrompt(runtime, child, chunk);
+      this.updateConsole(runtime, chunk);
+    });
+    attachTerminalReader(child.stderr, (chunk) => {
+      if (runtime.child === child) this.acceptRemoteControlPrompt(runtime, child, chunk);
     });
     attachLineReader(child.stdout, (line) => {
       if (runtime.child === child) this.addLog(runtime, "stdout", line);
@@ -339,9 +346,30 @@ export class ProcessManager extends EventEmitter<ProcessManagerEvents> {
   private clearProcessOutput(runtime: RuntimeProcess): void {
     runtime.logs = runtime.logs.filter((log) => log.stream === "system");
     runtime.urlScanTail = {};
+    runtime.remoteControlPromptTail = "";
+    runtime.remoteControlPromptAccepted = false;
     runtime.terminal.reset();
     if (runtime.consoleTimer) clearTimeout(runtime.consoleTimer);
     runtime.consoleTimer = undefined;
+  }
+
+  private acceptRemoteControlPrompt(
+    runtime: RuntimeProcess,
+    child: ChildProcessWithoutNullStreams,
+    chunk: string,
+  ): void {
+    if (runtime.remoteControlPromptAccepted) return;
+    const output = stripAnsi(`${runtime.remoteControlPromptTail}${chunk}`);
+    runtime.remoteControlPromptTail = output.slice(-256);
+    if (!/Enable Remote Control\?\s*\(y\/n\)/i.test(output)) return;
+
+    runtime.remoteControlPromptAccepted = true;
+    try {
+      child.stdin.write("y\n");
+      this.addLog(runtime, "system", "Accepted the Claude Remote Control enable prompt");
+    } catch (error) {
+      this.addLog(runtime, "system", `Could not accept the Remote Control prompt: ${errorMessage(error)}`);
+    }
   }
 
   private updateConsole(runtime: RuntimeProcess, chunk: string): void {
@@ -379,6 +407,8 @@ function createRuntime(definition: ProcessDefinition): RuntimeProcess {
     logs: [],
     nextLogId: 1,
     urlScanTail: {},
+    remoteControlPromptTail: "",
+    remoteControlPromptAccepted: false,
     terminal: new TerminalScreen(),
   };
 }
