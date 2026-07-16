@@ -35,7 +35,7 @@ pnpm build
 npx .
 ```
 
-The manager listens on `0.0.0.0:3000`, prints its reachable URLs, and opens a browser when run in an interactive terminal.
+The manager listens on `0.0.0.0:3000` and prints its reachable URLs for you to open in a browser.
 
 > **Security warning:** there is no authentication or TLS. Anyone who can reach the server can launch Claude against directories accessible to your OS user. Bind to localhost unless you intentionally need LAN access.
 
@@ -49,7 +49,6 @@ npx claude-remote-control --host 127.0.0.1
 --host <address>    Address to bind (default: 0.0.0.0)
 --port <number>     Port to listen on (default: 3000)
 --data-dir <path>   Persistent data directory (default: ~/.claude-remote-control)
---no-open           Do not open the browser automatically
 -h, --help          Show help
 ```
 

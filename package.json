@@ -34,7 +34,6 @@
   "packageManager": "pnpm@11.13.1",
   "dependencies": {
     "express": "^5.1.0",
-    "open": "^10.1.2",
     "strip-ansi": "^7.1.0"
   },
   "devDependencies": {

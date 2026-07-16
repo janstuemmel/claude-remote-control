@@ -3,7 +3,6 @@ import { parseArgs } from "node:util";
 import { homedir, networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import open from "open";
 import { AuthLoginManager } from "./auth/auth-login-manager.js";
 import { checkClaudeHealth } from "./health.js";
 import { ProcessManager } from "./process/process-manager.js";
@@ -15,7 +14,6 @@ const { values } = parseArgs({
     host: { type: "string", default: "0.0.0.0" },
     port: { type: "string", default: "3000" },
     "data-dir": { type: "string", default: join(homedir(), ".claude-remote-control") },
-    "no-open": { type: "boolean", default: false },
     help: { type: "boolean", short: "h", default: false },
   },
   strict: true,
@@ -73,10 +71,6 @@ const server = app.listen(port, host, () => {
   console.log("\nClaude Remote Control Manager is running");
   console.log(`Local:   ${localUrl}`);
   for (const address of lanAddresses(host)) console.log(`Network: http://${formatHost(address)}:${port}`);
-
-  if (!values["no-open"] && process.stdout.isTTY) {
-    void open(localUrl).catch((error) => console.warn(`Could not open the browser: ${error.message}`));
-  }
 });
 
 server.on("error", async (error) => {
@@ -124,6 +118,5 @@ Options:
   --host <address>    Address to bind (default: 0.0.0.0)
   --port <number>     Port to listen on (default: 3000)
   --data-dir <path>   Persistent data directory (default: ~/.claude-remote-control)
-  --no-open           Do not open the browser automatically
   -h, --help          Show this help`);
 }
