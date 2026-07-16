@@ -7,7 +7,9 @@ const state = {
 
 const elements = {
   health: document.querySelector("#health"),
-  toggleForm: document.querySelector("#toggle-form"),
+  addProcess: document.querySelector("#add-process"),
+  dialog: document.querySelector("#create-dialog"),
+  closeDialog: document.querySelector("#close-dialog"),
   cancelForm: document.querySelector("#cancel-form"),
   form: document.querySelector("#create-form"),
   formError: document.querySelector("#form-error"),
@@ -22,8 +24,13 @@ const elements = {
   toast: document.querySelector("#toast"),
 };
 
-elements.toggleForm.addEventListener("click", () => setFormOpen(elements.form.hidden));
+elements.addProcess.addEventListener("click", () => setFormOpen(true));
+elements.closeDialog.addEventListener("click", () => setFormOpen(false));
 elements.cancelForm.addEventListener("click", () => setFormOpen(false));
+elements.dialog.addEventListener("close", hideFormError);
+elements.dialog.addEventListener("click", (event) => {
+  if (event.target === elements.dialog) setFormOpen(false);
+});
 elements.mode.addEventListener("change", updateCapacityVisibility);
 elements.form.addEventListener("submit", createProcess);
 
@@ -148,8 +155,8 @@ function renderHealth() {
   elements.health.innerHTML = '<span class="status-dot"></span>';
   elements.health.append(document.createTextNode(label));
   elements.submitForm.disabled = !health?.compatible;
-  elements.toggleForm.disabled = !health?.compatible;
-  if (!health?.compatible) elements.toggleForm.title = health?.error ?? `Claude ${health?.minimumVersion} or newer is required`;
+  elements.addProcess.disabled = !health?.compatible;
+  if (!health?.compatible) elements.addProcess.title = health?.error ?? `Claude ${health?.minimumVersion} or newer is required`;
 }
 
 function renderProcesses() {
@@ -334,11 +341,13 @@ function createLogLine(log, showStream) {
 }
 
 function setFormOpen(open) {
-  elements.form.hidden = !open;
-  elements.toggleForm.setAttribute("aria-expanded", String(open));
-  elements.toggleForm.innerHTML = open ? "Close form" : '<span aria-hidden="true">＋</span> Add process';
   hideFormError();
-  if (open) document.querySelector("#name").focus();
+  if (open && !elements.dialog.open) {
+    elements.dialog.showModal();
+    document.querySelector("#name").focus();
+  } else if (!open && elements.dialog.open) {
+    elements.dialog.close();
+  }
 }
 
 function updateCapacityVisibility() {
