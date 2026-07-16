@@ -27,8 +27,8 @@ export function createApp({ manager, publicDirectory, getHealth }: AppOptions): 
 
   app.post("/api/processes", asyncRoute(async (request, response) => {
     const health = await getHealth();
-    if (!health.available || !health.compatible) {
-      throw new AppError(503, "claude_unavailable", health.error ?? "Compatible Claude Code is not available");
+    if (!health.ready) {
+      throw new AppError(503, "claude_unavailable", health.error ?? "Claude Code is not ready for Remote Control");
     }
     const process = await manager.create(request.body);
     response.status(201).json({ process });

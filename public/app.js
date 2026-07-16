@@ -7,6 +7,7 @@ const state = {
 
 const elements = {
   health: document.querySelector("#health"),
+  authDetails: document.querySelector("#auth-details"),
   addProcess: document.querySelector("#add-process"),
   dialog: document.querySelector("#create-dialog"),
   closeDialog: document.querySelector("#close-dialog"),
@@ -146,17 +147,68 @@ async function processAction(id, action) {
 
 function renderHealth() {
   const health = state.health;
-  elements.health.className = `health ${health?.compatible ? "health-ok" : "health-error"}`;
-  const label = health?.compatible
-    ? `Claude ${health.version} ready`
-    : health?.available
+  elements.health.className = `health ${health?.ready ? "health-ok" : "health-error"}`;
+  const errorLabel = !health?.available
+    ? "Claude is not available"
+    : !health?.compatible
       ? `Claude ${health.version ?? "version unknown"} is unsupported`
-      : "Claude is not available";
+      : !health?.auth?.loggedIn
+        ? "Claude login required"
+        : "Claude.ai authentication required";
+  const mobileErrorLabel = !health?.available
+    ? "Unavailable"
+    : !health?.compatible
+      ? "Update Claude"
+      : !health?.auth?.loggedIn
+        ? "Login required"
+        : "Auth error";
   elements.health.innerHTML = '<span class="status-dot"></span>';
-  elements.health.append(document.createTextNode(label));
-  elements.submitForm.disabled = !health?.compatible;
-  elements.addProcess.disabled = !health?.compatible;
-  if (!health?.compatible) elements.addProcess.title = health?.error ?? `Claude ${health?.minimumVersion} or newer is required`;
+  const fullLabel = document.createElement("span");
+  fullLabel.className = "health-label-full";
+  fullLabel.textContent = health?.ready ? `Claude ${health.version}` : errorLabel;
+  const mobileLabel = document.createElement("span");
+  mobileLabel.className = "health-label-mobile";
+  mobileLabel.textContent = health?.ready ? `Claude ${health.version}` : mobileErrorLabel;
+  elements.health.append(fullLabel, mobileLabel);
+  renderAuthDetails(health);
+  elements.submitForm.disabled = !health?.ready;
+  elements.addProcess.disabled = !health?.ready;
+  if (!health?.ready) elements.addProcess.title = health?.error ?? "Claude is not ready for Remote Control";
+}
+
+function renderAuthDetails(health) {
+  elements.authDetails.replaceChildren();
+  const heading = document.createElement("strong");
+  heading.textContent = health?.ready ? "Claude is ready" : "Claude needs attention";
+  elements.authDetails.append(heading);
+
+  const details = document.createElement("dl");
+  details.className = "auth-row";
+  for (const [label, value] of [
+    ["Version", health?.version],
+    ["Signed in", health?.auth?.loggedIn ? "Yes" : "No"],
+    ["Method", health?.auth?.authMethod],
+    ["Provider", health?.auth?.apiProvider],
+    ["Email", health?.auth?.email],
+    ["Organization", health?.auth?.orgName],
+    ["Organization ID", health?.auth?.orgId],
+    ["Subscription", health?.auth?.subscriptionType],
+  ]) {
+    if (!value) continue;
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const description = document.createElement("dd");
+    description.textContent = value;
+    details.append(term, description);
+  }
+  elements.authDetails.append(details);
+
+  if (!health?.ready) {
+    const message = document.createElement("p");
+    message.className = "auth-message auth-message-error";
+    message.textContent = health?.error ?? health?.auth?.error ?? "Run claude auth login to sign in through Claude.ai.";
+    elements.authDetails.append(message);
+  }
 }
 
 function renderProcesses() {

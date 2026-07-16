@@ -11,11 +11,18 @@
   <body>
     <header class="app-header">
       <div class="header-inner">
-        <h1>Claude Remote Control</h1>
+        <h1><span class="brand-full">Claude Remote Control</span><span class="brand-short">Claude RC</span></h1>
         <div class="header-actions">
-          <div id="health" class="health health-loading" aria-live="polite">
-            <span class="status-dot"></span>
-            <span>Checking Claude…</span>
+          <div class="health-wrap">
+            <button id="health" class="health health-loading" type="button" aria-describedby="auth-details">
+              <span class="status-dot"></span>
+              <span class="health-label-full">Checking Claude…</span>
+              <span class="health-label-mobile">Checking…</span>
+            </button>
+            <div id="auth-details" class="auth-details" role="tooltip" aria-live="polite">
+              <strong>Claude status</strong>
+              <span>Checking authentication…</span>
+            </div>
           </div>
           <button id="add-process" class="button button-primary" type="button">
             <span aria-hidden="true">＋</span> Add process

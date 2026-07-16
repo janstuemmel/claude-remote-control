@@ -51,7 +51,7 @@ const app = createApp({
   getHealth: async () => {
     const health = await healthPromise;
     // Refresh failures so installing/upgrading Claude does not require restarting this manager.
-    if (!health.available || !health.compatible) healthPromise = checkClaudeHealth();
+    if (!health.ready) healthPromise = checkClaudeHealth();
     return health;
   },
 });

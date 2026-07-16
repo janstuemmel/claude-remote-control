@@ -53,8 +53,21 @@ export interface PersistedState {
 export interface HealthStatus {
   available: boolean;
   compatible: boolean;
+  ready: boolean;
   version?: string;
   minimumVersion: string;
+  auth: ClaudeAuthStatus;
+  error?: string;
+}
+
+export interface ClaudeAuthStatus {
+  loggedIn: boolean;
+  authMethod?: string;
+  apiProvider?: string;
+  email?: string;
+  orgId?: string;
+  orgName?: string;
+  subscriptionType?: string;
   error?: string;
 }
 

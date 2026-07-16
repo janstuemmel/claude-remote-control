@@ -12,8 +12,15 @@ import { FakeChild, MemoryStateStore, nextTurn } from "./helpers.js";
 const healthy: HealthStatus = {
   available: true,
   compatible: true,
+  ready: true,
   version: "2.1.170",
   minimumVersion: "2.1.51",
+  auth: {
+    loggedIn: true,
+    authMethod: "claude.ai",
+    apiProvider: "firstParty",
+    email: "developer@example.com",
+  },
 };
 
 describe("HTTP API", () => {
@@ -64,7 +71,7 @@ describe("HTTP API", () => {
     const unavailableApp = createApp({
       manager,
       publicDirectory: join(process.cwd(), "public"),
-      getHealth: async () => ({ ...healthy, available: false, compatible: false, error: "missing" }),
+      getHealth: async () => ({ ...healthy, available: false, compatible: false, ready: false, error: "missing" }),
     });
     await request(unavailableApp).post("/api/processes").send({ name: "No Claude", cwd, spawnMode: "session" })
       .expect(503).expect(({ body }) => expect(body.error.code).toBe("claude_unavailable"));
